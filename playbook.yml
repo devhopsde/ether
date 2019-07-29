@@ -1,0 +1,52 @@
+---
+- hosts: 
+  - localhost
+  
+  vars: 
+    dbvolume: /var/lib/docker/etherpaddb
+
+  tasks:
+  - name: install python-docker-py
+    yum: 
+      name: python-docker-py
+      state: latest 
+
+  - name: create mariadb volume
+    file:
+      path: "{{ dbvolume }}"    
+      state: directory
+ 
+  - name: mariadb container
+    docker_container:
+      name: etherpaddb
+      image: "centos/mariadb"
+      state: started
+      pull: true
+      restart_policy: always
+      #network_mode: host
+      env:
+        MYSQL_ROOT_PASSWORD: 'rootpw'
+        MYSQL_DATABASE: 'db'
+        MYSQL_USER: 'yourdbuser'
+        MYSQL_PASSWORD: 'yourdbpassword'
+        MYSQL_ALLOW_EMPTY_PASSWORD: 'no'
+        MYSQL_RANDOM_ROOT_PASSWORD: 'no'
+      volumes:
+      #  - "{{ dbvolume }}:/var/lib/mysql"
+        - "/var/lib/mysql"
+
+  - name: etherpad container
+    docker_container:
+      name: etherpad
+      image: "fhnbg/etherpad"
+      state: started
+      pull: true
+      restart_policy: always
+      #command: /var/lib/etherpad/fix-permissions.sh /var/lib/etherpad/settings.json
+      #user: 1001
+      links: 
+        - "etherpaddb:db"
+      ports: 
+        - 9001:9001
+      volumes:
+        - "/home/fhnbg/settings.json:/var/lib/etherpad/settingsexternal.json"
